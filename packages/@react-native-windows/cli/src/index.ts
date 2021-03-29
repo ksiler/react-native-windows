@@ -100,7 +100,7 @@ export async function generateWindows(
     );
   } catch (e) {
     error = e;
-    Telemetry.client?.trackException({exception: error});
+    Telemetry.trackException(error);
     throw e;
   } finally {
     if (Telemetry.client) {
@@ -151,3 +151,4 @@ assertStableInterface;
 export const commands = [autoLinkCommand, runWindowsCommand];
 export const dependencyConfig = dependencyConfigWindows;
 export const projectConfig = projectConfigWindows;
+export * from './healthChecks';

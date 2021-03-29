@@ -112,6 +112,12 @@
     <ClCompile Include="$(MSBuildThisFileDirectory)Modules\WebSocketModule.cpp">
       <Filter>Source Files\Modules</Filter>
     </ClCompile>
+    <ClCompile Include="$(MSBuildThisFileDirectory)JSI\ChakraApi.cpp">
+      <Filter>Source Files\JSI</Filter>
+    </ClCompile>
+    <ClCompile Include="$(MSBuildThisFileDirectory)JSI\ChakraRuntime.cpp">
+      <Filter>Source Files\JSI</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Source Files">
@@ -126,9 +132,6 @@
     <Filter Include="Source Files\AsyncStorage">
       <UniqueIdentifier>{ee633764-9967-4233-8848-81edf1488790}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Header Files\etw">
-      <UniqueIdentifier>{5862fbd1-2e67-4c90-9e58-24a66d71aec4}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Header Files\Modules">
       <UniqueIdentifier>{37d57028-146d-45f3-a56d-2ce7625a3449}</UniqueIdentifier>
     </Filter>
@@ -137,9 +140,6 @@
     </Filter>
     <Filter Include="Header Files\tracing">
       <UniqueIdentifier>{87b365df-267b-4c00-860a-53d129a65a4e}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\etw">
-      <UniqueIdentifier>{6008bddc-9f23-4190-9eea-662fb1ab2467}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files\tracing">
       <UniqueIdentifier>{6d6b7412-d407-4ee3-be2a-addd9dba140a}</UniqueIdentifier>
@@ -162,6 +162,12 @@
     <Filter Include="Header Files\Utils">
       <UniqueIdentifier>{2ad4b85f-faa4-4e14-905c-6c48c8ae1a20}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\JSI">
+      <UniqueIdentifier>{07874914-e3b0-4d02-ad53-3518c2cb8cd8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\JSI">
+      <UniqueIdentifier>{1a3ad55f-1297-41b3-ba2a-0f819e69270c}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="$(MSBuildThisFileDirectory)AsyncStorage\StorageFileIO.h">
@@ -175,9 +181,6 @@
     </ClInclude>
     <ClInclude Include="$(MSBuildThisFileDirectory)AsyncStorage\KeyValueStorage.h">
       <Filter>Header Files\AsyncStorage</Filter>
-    </ClInclude>
-    <ClInclude Include="$(MSBuildThisFileDirectory)etw\react_native_windows.h">
-      <Filter>Header Files\etw</Filter>
     </ClInclude>
     <ClInclude Include="$(MSBuildThisFileDirectory)Modules\ExceptionsManagerModule.h">
       <Filter>Header Files\Modules</Filter>
@@ -329,19 +332,32 @@
     <ClInclude Include="$(MSBuildThisFileDirectory)Utils\CppWinrtLessExceptions.h">
       <Filter>Header Files\Utils</Filter>
     </ClInclude>
+    <ClInclude Include="$(MSBuildThisFileDirectory)JSI\ByteArrayBuffer.h">
+      <Filter>Header Files\JSI</Filter>
+    </ClInclude>
+    <ClInclude Include="$(MSBuildThisFileDirectory)JSI\ChakraApi.h">
+      <Filter>Header Files\JSI</Filter>
+    </ClInclude>
+    <ClInclude Include="$(MSBuildThisFileDirectory)JSI\ChakraRuntime.h">
+      <Filter>Header Files\JSI</Filter>
+    </ClInclude>
+    <ClInclude Include="$(MSBuildThisFileDirectory)JSI\ChakraRuntimeArgs.h">
+      <Filter>Header Files\JSI</Filter>
+    </ClInclude>
+    <ClInclude Include="$(MSBuildThisFileDirectory)JSI\ChakraRuntimeFactory.h">
+      <Filter>Header Files\JSI</Filter>
+    </ClInclude>
+    <ClInclude Include="$(MSBuildThisFileDirectory)JSI\RuntimeHolder.h">
+      <Filter>Header Files\JSI</Filter>
+    </ClInclude>
+    <ClInclude Include="$(MSBuildThisFileDirectory)JSI\ScriptStore.h">
+      <Filter>Header Files\JSI</Filter>
+    </ClInclude>
+    <ClInclude Include="$(MSBuildThisFileDirectory)..\include\Shared\cdebug.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="$(MSBuildThisFileDirectory)etw\build.bat">
-      <Filter>Source Files\etw</Filter>
-    </None>
-    <None Include="$(MSBuildThisFileDirectory)etw\react_native_windows.man">
-      <Filter>Source Files\etw</Filter>
-    </None>
-    <None Include="$(MSBuildThisFileDirectory)etw\react_native_windows_etw_res.dll">
-      <Filter>Source Files\etw</Filter>
-    </None>
-    <None Include="$(MSBuildThisFileDirectory)etw\register.bat">
-      <Filter>Source Files\etw</Filter>
+    <None Include="$(MSBuildThisFileDirectory)tracing\rnw.wprp">
+      <Filter>Source Files\tracing</Filter>
     </None>
   </ItemGroup>
 </Project>

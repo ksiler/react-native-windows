@@ -2,14 +2,20 @@ parameters:
   - name: buildEnvironment
     type: string
     default : PullRequest
-    values: 
-     - PullRequest 
-     - Continuous 
-     
+    values:
+     - PullRequest
+     - Continuous
+
 jobs:
   - job: Desktop
+    displayName: Desktop
     variables:
       - template: ../variables/vs2019.yml
+
+      # Enable if any issues RNTesterIntegrationTests::* become unstable.
+      - name: Desktop.IntegrationTests.SkipRNTester
+        value: false
+
       #5059 - Disable failing or intermittent tests (IntegrationTestHarness,AsyncStorage,WebSocket,Logging).
       #5265 - WebSocketModuleIntegrationTest::WebSocketModule_Ping fails for Release
       - name: Desktop.IntegrationTests.Filter
@@ -17,25 +23,31 @@ jobs:
           (FullyQualifiedName!=RNTesterIntegrationTests::AsyncStorage)&
           (FullyQualifiedName!=RNTesterIntegrationTests::IntegrationTestHarness)&
           (FullyQualifiedName!=RNTesterIntegrationTests::WebSocket)&
-          (FullyQualifiedName!~WebSocketModule_)&
           (FullyQualifiedName!=WebSocketResourcePerformanceTest::ProcessThreadsPerResource)
-    displayName: Desktop
+
+      #6799 -
+      #       HostFunctionTest              - Crashes under JSI/V8
+      #       HostObjectProtoTest           - Crashes under JSI/V8
+      #       PreparedJavaScriptSourceTest  - Asserts/Fails under JSI/ChakraCore
+      - name: Desktop.UnitTests.Filter
+        value: >
+          (FullyQualifiedName!~HostFunctionTest)&
+          (FullyQualifiedName!~HostObjectProtoTest)&
+          (FullyQualifiedName!~PreparedJavaScriptSourceTest)
+
     strategy:
       matrix:
-        # Start Continuous only
         ${{ if eq(parameters.buildEnvironment, 'Continuous') }}:
-          ArmDebug:
+          # Arm Desktop does not build on non-arm agents
+          # ArmDebug:
+          #   BuildConfiguration: Debug
+          #   BuildPlatform: ARM
+          # ArmRelease:
+          #   BuildConfiguration: Release
+          #   BuildPlatform: ARM
+          Arm64Debug:
             BuildConfiguration: Debug
-            BuildPlatform: ARM
-          ArmRelease:
-            BuildConfiguration: Release
-            BuildPlatform: ARM
-        # End Continuous only
-        Arm64Debug:
-          BuildConfiguration: Debug
-          BuildPlatform: ARM64
-        # Start Continuous only
-        ${{ if eq(parameters.buildEnvironment, 'Continuous') }}:
+            BuildPlatform: ARM64
           Arm64Release:
             BuildConfiguration: Release
             BuildPlatform: ARM64
@@ -55,8 +67,7 @@ jobs:
             BuildConfiguration: Release
             BuildPlatform: x86
         # End Continuous only
-    pool:
-      vmImage: $(VmImage)
+    pool: $(AgentPool.Medium)
     timeoutInMinutes: 60 # how long to run the job before automatically cancelling
     cancelTimeoutInMinutes: 5 # how much time to give 'run always even if cancelled tasks' before killing them
 
@@ -65,18 +76,25 @@ jobs:
         clean: false
         submodules: false
 
+      - template: ../templates/apply-published-version-vars.yml
+
+      - powershell: |
+          $newValue = '(FullyQualifiedName!~RNTesterIntegrationTests::)&' + "$(Desktop.IntegrationTests.Filter)"
+          Write-Host "##vso[task.setvariable variable=Desktop.IntegrationTests.Filter]$newValue"
+        displayName: Update Desktop.IntegrationTests.Filter to exclude RNTester integration tests
+        condition: and(succeeded(), eq(variables['Desktop.IntegrationTests.SkipRNTester'], 'true'))
+
       - template: ../templates/build-rnw.yml
         parameters:
-          yarnBuildCmd: build
           project: vnext/ReactWindows-Desktop.sln
           buildPlatform: $(BuildPlatform)
           buildConfiguration: $(BuildConfiguration)
-          
+
       - task: CmdLine@2
         displayName: Build react-native-win32 RNTester bundle
         inputs:
           script: yarn bundle
-          workingDirectory: packages/react-native-win32
+          workingDirectory: packages/@office-iss/react-native-win32
         condition: and(succeeded(), eq(variables['BuildConfiguration'], 'Debug'), eq(variables['BuildPlatform'], 'x64'))
 
       - powershell: |
@@ -92,9 +110,10 @@ jobs:
           testSelector: testAssemblies
           testAssemblyVer2: |
             React.Windows.Desktop.UnitTests/React.Windows.Desktop.UnitTests.dll
-            JSI.Desktop.UnitTests/JSI.Desktop.UnitTests.exe
+            ReactCommon.UnitTests/ReactCommon.UnitTests.exe
           pathtoCustomTestAdapters: $(GoogleTestAdapterPath)
           searchFolder: $(Build.SourcesDirectory)/vnext/target/$(BuildPlatform)/$(BuildConfiguration)
+          testFiltercriteria: $(Desktop.UnitTests.Filter)
           runTestsInIsolation: true
           platform: $(BuildPlatform)
           configuration: $(BuildConfiguration)
@@ -108,14 +127,14 @@ jobs:
           targetType: filePath # filePath | inline
           filePath: $(Build.SourcesDirectory)\vnext\Scripts\Tfs\Start-TestServers.ps1
           arguments: -SourcesDirectory $(Build.SourcesDirectory)\vnext -Preload -SleepSeconds 120
-        condition: false # windesktop is no longer bundling
+        condition: and(succeeded(), ne(variables['Desktop.IntegrationTests.SkipRNTester'], 'true'), ne(variables['BuildConfiguration'], 'Debug'))
 
       - task: PowerShell@2
         displayName: Check the metro bundle server
         inputs:
           targetType: 'inline'
-          script: Invoke-WebRequest -UseBasicParsing -Uri "http://localhost:8081/IntegrationTests/IntegrationTestsApp.bundle?platform=windesktop&dev=true"
-        condition: false # windesktop is no longer bundling
+          script: Invoke-WebRequest -UseBasicParsing -Uri "http://localhost:8081/IntegrationTests/IntegrationTestsApp.bundle?platform=windows&dev=true"
+        condition: and(succeeded(), ne(variables['Desktop.IntegrationTests.SkipRNTester'], 'true'), ne(variables['BuildConfiguration'], 'Debug'))
 
       - task: VSTest@2
         displayName: Run Desktop Integration Tests
@@ -131,9 +150,8 @@ jobs:
           collectDumpOn: onAbortOnly
           vsTestVersion: latest
           otherConsoleOptions: '/blame -- RunConfiguration.TestSessionTimeout=300000'
-        condition: false # windesktop is no longer bundling
         # Suspected debug assert in TestRunner hanging tests randomly. Run only on Release for now.
-        # condition: and(succeeded(), ne(variables['BuildConfiguration'], 'Debug'))
+        condition: and(succeeded(), ne(variables['BuildConfiguration'], 'Debug'))
 
       - template: ../templates/stop-packagers.yml
 
@@ -151,3 +169,4 @@ jobs:
         inputs:
           alertWarningLevel: Medium
           scanType: 'Register'
+        condition: false # Temporarily disabling CG, see https://github.com/microsoft/react-native-windows/issues/7261

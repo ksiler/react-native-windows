@@ -14,11 +14,8 @@
 #include "Unicode.h"
 #include "Utilities.h"
 
-#pragma warning(push)
-#pragma warning(disable : 4146)
 #include <cxxreact/Instance.h>
 #include <cxxreact/JsArgumentHelpers.h>
-#pragma warning(pop)
 
 #if _MSC_VER <= 1913
 // VC 19 (2015-2017.6) cannot optimize co_await/cppwinrt usage
@@ -182,8 +179,8 @@ void LegacyWebSocketModule::WebSocket::connect(
     } else {
       error = e.message().c_str();
     }
-    cwdebug << L"WebSocket.connect failed (0x" << std::hex << e.code() << ") " << error << " at "
-            << uri.DisplayUri().c_str() << std::endl;
+    cdebug << "WebSocket.connect failed (0x" << std::to_string(e.code(), 16) << ") " << error << " at "
+           << uri.DisplayUri().c_str() << "\n";
     onError(id, e.code());
   }
 }

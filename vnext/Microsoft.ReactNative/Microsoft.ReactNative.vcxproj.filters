@@ -309,6 +309,15 @@
     <ClCompile Include="Modules\PaperUIManagerModule.cpp" />
     <ClCompile Include="Views\PaperShadowNode.cpp" />
     <ClCompile Include="Views\ShadowNodeRegistry.cpp" />
+    <ClCompile Include="JSI\ChakraJsiRuntime_edgemode.cpp">
+      <Filter>JSI</Filter>
+    </ClCompile>
+    <ClCompile Include="Utils\BatchingEventEmitter.cpp">
+      <Filter>Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="ReactHost\JSCallInvokerScheduler.cpp">
+      <Filter>ReactHost</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ABICxxModule.h" />
@@ -663,6 +672,12 @@
     <ClInclude Include="Views\PaperShadowNode.h" />
     <ClInclude Include="Views\ShadowNodeRegistry.h" />
     <ClInclude Include="DocString.h" />
+    <ClInclude Include="Utils\BatchingEventEmitter.h">
+      <Filter>Utils</Filter>
+    </ClInclude>
+    <ClInclude Include="ReactHost\JSCallInvokerScheduler.h">
+      <Filter>ReactHost</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Midl Include="IJSValueReader.idl" />
@@ -699,6 +714,7 @@
     <Midl Include="IViewManagerCore.idl" />
     <Midl Include="JsiApi.idl" />
     <Midl Include="DocString.idl" />
+    <Midl Include="DesktopWindowMessage.idl" />
   </ItemGroup>
   <ItemGroup>
     <None Include="microsoft.reactnative.def" />
@@ -741,6 +757,9 @@
     </Filter>
     <Filter Include="Views\Impl">
       <UniqueIdentifier>{b0b76275-4a16-4939-87ee-f777cb189114}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="JSI">
+      <UniqueIdentifier>{24290499-e864-407e-89c0-473f2b8dbb6e}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>

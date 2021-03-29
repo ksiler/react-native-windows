@@ -94,7 +94,7 @@ class TextInputShadowNode : public ShadowNodeBase {
 
  public:
   TextInputShadowNode() = default;
-  void createView() override;
+  void createView(const winrt::Microsoft::ReactNative::JSValueObject &) override;
   void updateProperties(winrt::Microsoft::ReactNative::JSValueObject &props) override;
 
   void dispatchCommand(const std::string &commandId, winrt::Microsoft::ReactNative::JSValueArray &&commandArgs)
@@ -165,8 +165,8 @@ class TextInputShadowNode : public ShadowNodeBase {
   xaml::Controls::Control::Loaded_revoker m_controlLoadedRevoker{};
 };
 
-void TextInputShadowNode::createView() {
-  Super::createView();
+void TextInputShadowNode::createView(const winrt::Microsoft::ReactNative::JSValueObject &props) {
+  Super::createView(props);
   registerEvents();
 }
 
@@ -328,7 +328,7 @@ void TextInputShadowNode::registerEvents() {
               folly::dynamic offsetData = folly::dynamic::object("x", args.FinalView().HorizontalOffset())(
                   "y", args.FinalView().VerticalOffset());
               folly::dynamic eventData = folly::dynamic::object("target", tag)("contentOffset", std::move(offsetData));
-              GetViewManager()->GetReactContext().DispatchEvent(tag, "topTextInputOnScroll", std::move(eventData));
+              GetViewManager()->GetReactContext().DispatchEvent(tag, "topTextInputScroll", std::move(eventData));
             }
           });
     }
@@ -355,6 +355,22 @@ void TextInputShadowNode::registerEvents() {
           }
         });
   }
+
+  control.as<xaml::UIElement>().AddHandler(
+      xaml::UIElement::PointerPressedEvent(),
+      winrt::box_value(xaml::Input::PointerEventHandler([=](auto &&, xaml::Input::PointerRoutedEventArgs const &args) {
+        folly::dynamic eventData = folly::dynamic::object("target", tag);
+        GetViewManager()->GetReactContext().DispatchEvent(tag, "topTextInputPressIn", std::move(eventData));
+      })),
+      true);
+
+  control.as<xaml::UIElement>().AddHandler(
+      xaml::UIElement::PointerReleasedEvent(),
+      winrt::box_value(xaml::Input::PointerEventHandler([=](auto &&, xaml::Input::PointerRoutedEventArgs const &args) {
+        folly::dynamic eventData = folly::dynamic::object("target", tag);
+        GetViewManager()->GetReactContext().DispatchEvent(tag, "topTextInputPressOut", std::move(eventData));
+      })),
+      true);
 }
 
 xaml::Shapes::Shape TextInputShadowNode::FindCaret(xaml::DependencyObject element) {
@@ -596,10 +612,17 @@ void TextInputShadowNode::SetText(const winrt::Microsoft::ReactNative::JSValue &
   if (m_mostRecentEventCount == m_nativeEventCount) {
     if (textBox) {
       if (text.Type() == winrt::Microsoft::ReactNative::JSValueType::String) {
+        auto oldCursor = textBox.SelectionStart();
+        auto oldSelectionLength = textBox.SelectionLength();
         auto oldValue = textBox.Text();
         auto newValue = react::uwp::asHstring(text);
         if (oldValue != newValue) {
           textBox.Text(newValue);
+          if (oldValue.size() == newValue.size()) {
+            textBox.SelectionStart(oldCursor);
+          } else {
+            textBox.SelectionStart(newValue.size());
+          }
         }
       } else if (text.IsNull())
         textBox.ClearValue(xaml::Controls::TextBox::TextProperty());
@@ -688,7 +711,9 @@ void TextInputViewManager::GetExportedCustomDirectEventTypeConstants(
                                L"SelectionChange",
                                L"ContentSizeChange",
                                L"KeyPress",
-                               L"OnScroll",
+                               L"PressIn",
+                               L"PressOut",
+                               L"Scroll",
                                L"SubmitEditing"};
 
   for (auto &eventBaseName : eventNames) {
@@ -705,7 +730,7 @@ ShadowNode *TextInputViewManager::createShadow() const {
   return new TextInputShadowNode();
 }
 
-XamlView TextInputViewManager::CreateViewCore(int64_t /*tag*/) {
+XamlView TextInputViewManager::CreateViewCore(int64_t /*tag*/, const winrt::Microsoft::ReactNative::JSValueObject &) {
   xaml::Controls::TextBox textBox;
   return textBox;
 }

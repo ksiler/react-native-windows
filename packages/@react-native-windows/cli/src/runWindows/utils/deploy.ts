@@ -25,6 +25,7 @@ import {BuildConfig, RunWindowsOptions} from '../runWindowsOptions';
 import MSBuildTools from './msbuildtools';
 import {Config} from '@react-native-community/cli-types';
 import {WindowsProjectConfig} from '../../config/projectConfig';
+import {CodedError} from '@react-native-windows/telemetry';
 import Version from './version';
 
 function pushd(pathArg: string): () => void {
@@ -96,7 +97,8 @@ function getAppPackage(
   }
 
   if (!appPackage) {
-    throw new Error(
+    throw new CodedError(
+      'NoAppPackage',
       `Unable to find app package using search path: "${appPackageGlob}"`,
     );
   }
@@ -123,25 +125,36 @@ function getAppxManifestPath(
   projectName?: string,
 ): string {
   const configuration = getBuildConfiguration(options);
-  const appxManifestGlob = `windows/{*/bin/${options.arch}/${configuration},${configuration}/*,target/${options.arch}/${configuration},${options.arch}/${configuration}/*}/AppxManifest.xml`;
+  // C++ x86 manifest would go under windows/Debug whereas x64 goes under windows/x64/Debug
+  // If we've built both, this causes us to end up with two matches, so we have to carefully select the right folder
+  let archFolder;
+  if (options.arch !== 'x86') {
+    archFolder = `${options.arch}/${configuration}`;
+  } else {
+    archFolder = `${configuration}`;
+  }
+
+  const appxManifestGlob = `windows/{*/bin/${options.arch}/${configuration},${archFolder}/*,target/${options.arch}/${configuration}}/AppxManifest.xml`;
   const globs = glob.sync(path.join(options.root, appxManifestGlob));
   let appxPath: string;
   if (globs.length === 1 || !projectName) {
     appxPath = globs[0];
   } else {
     const filteredGlobs = globs.filter(x => x.includes(projectName));
+    appxPath = filteredGlobs[0];
     if (filteredGlobs.length > 1) {
       newWarn(
         `More than one appxmanifest for ${projectName}: ${filteredGlobs.join(
           ',',
         )}`,
       );
+      newWarn(`Choosing ${appxPath}`);
     }
-    appxPath = filteredGlobs[0];
   }
 
   if (!appxPath) {
-    throw new Error(
+    throw new CodedError(
+      'NoAppxManifest',
       `Unable to find AppxManifest from "${options.root}", using search path: "${appxManifestGlob}" `,
     );
   }
@@ -158,9 +171,15 @@ function getAppxManifest(options: RunWindowsOptions): parse.Document {
 
 function handleResponseError(e: Error): never {
   if (e.message.indexOf('Error code -2146233088')) {
-    throw new Error(`No Windows Mobile device was detected: ${e.message}`);
+    throw new CodedError(
+      'NoDevice',
+      `No Windows Mobile device was detected: ${e.message}`,
+    );
   } else {
-    throw new Error(`Unexpected error deploying app: ${e.message}`);
+    throw new CodedError(
+      'AppDidNotDeploy',
+      `Unexpected error deploying app: ${e.message}`,
+    );
   }
 }
 
@@ -231,7 +250,7 @@ export async function deployToDesktop(
   const projectName =
     windowsConfig && windowsConfig.project && windowsConfig.project.projectName
       ? windowsConfig.project.projectName
-      : options.proj!;
+      : path.parse(options.proj!).name;
   const windowsStoreAppUtils = getWindowsStoreAppUtils(options);
   const appxManifestPath = getAppxManifestPath(options, projectName);
   const appxManifest = parseAppxManifest(appxManifestPath);
@@ -256,6 +275,7 @@ export async function deployToDesktop(
     windowsStoreAppUtils,
     'EnableDevMode',
     verbose,
+    'EnableDevModeFailure',
   );
 
   const appPackageFolder = getAppPackage(options, projectName);
@@ -266,18 +286,22 @@ export async function deployToDesktop(
       windowsStoreAppUtils,
       `Uninstall-App ${appName}`,
       verbose,
+      'RemoveOldAppVersionFailure',
     );
+
     const script = glob.sync(
       path.join(appPackageFolder, 'Add-AppDevPackage.ps1'),
     )[0];
+
     await runPowerShellScriptFunction(
       'Installing new version of the app',
       windowsStoreAppUtils,
       `Install-App "${script}" -Force`,
       verbose,
+      'InstallAppFailure',
     );
   } else {
-    // If we have DeployAppRecipe.exe, use it (start in 16.9 Preview 2, don't use 16.8 even if it's there as that version has bugs)
+    // If we have DeployAppRecipe.exe, use it (start in 16.8.4, earlier 16.8 versions have bugs)
     const appxRecipe = path.join(
       path.dirname(appxManifestPath),
       `${projectName}.build.appxrecipe`,
@@ -285,7 +309,7 @@ export async function deployToDesktop(
     const ideFolder = `${buildTools.installationPath}\\Common7\\IDE`;
     const deployAppxRecipeExePath = `${ideFolder}\\DeployAppRecipe.exe`;
     if (
-      vsVersion.gte(Version.fromString('16.9.30801.93')) &&
+      vsVersion.gte(Version.fromString('16.8.30906.45')) &&
       fs.existsSync(deployAppxRecipeExePath)
     ) {
       await commandWithProgress(
@@ -294,6 +318,7 @@ export async function deployToDesktop(
         deployAppxRecipeExePath,
         [appxRecipe],
         verbose,
+        'DeployRecipeFailure',
       );
     } else {
       // Install the app package's dependencies before attempting to deploy.
@@ -302,6 +327,7 @@ export async function deployToDesktop(
         windowsStoreAppUtils,
         `Install-AppDependencies ${appxManifestPath} ${appPackageFolder} ${options.arch}`,
         verbose,
+        'InstallAppDependenciesFailure',
       );
       await build.buildSolution(
         buildTools,
@@ -323,7 +349,8 @@ export async function deployToDesktop(
     .trim();
 
   if (!appFamilyName) {
-    throw new Error(
+    throw new CodedError(
+      'AppDidNotDeploy',
       'Fail to check the installed app, maybe developer mode is off on Windows',
     );
   }
@@ -337,6 +364,7 @@ export async function deployToDesktop(
     'CheckNetIsolation',
     `LoopbackExempt -a -n=${appFamilyName}`.split(' '),
     verbose,
+    'CheckNetIsolationFailure',
   );
 
   if (shouldLaunchApp(options)) {
@@ -345,6 +373,7 @@ export async function deployToDesktop(
       windowsStoreAppUtils,
       `Start-Locally ${appName} ${args}`,
       verbose,
+      'AppStartupFailure',
     );
   } else {
     newInfo('Skip the step to start the app');

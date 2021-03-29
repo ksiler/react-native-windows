@@ -58,8 +58,11 @@ class ABIViewManager : public ::Microsoft::ReactNative::FrameworkElementViewMana
       const xaml::DependencyObject &oldChild,
       const xaml::DependencyObject &newChild) override;
 
+  YGMeasureFunc GetYogaCustomMeasureFunc() const override;
+  ::Microsoft::ReactNative::ShadowNode *createShadow() const override;
+
  protected:
-  xaml::DependencyObject CreateViewCore(int64_t) override;
+  xaml::DependencyObject CreateViewCore(int64_t, const winrt::Microsoft::ReactNative::JSValueObject &props) override;
 
   std::wstring m_name;
   ReactNative::IViewManager m_viewManager;
@@ -69,6 +72,7 @@ class ABIViewManager : public ::Microsoft::ReactNative::FrameworkElementViewMana
   IViewManagerWithCommands m_viewManagerWithCommands;
   IViewManagerWithExportedEventTypeConstants m_viewManagerWithExportedEventTypeConstants;
   IViewManagerWithChildren m_viewManagerWithChildren;
+  IViewManagerRequiresNativeLayout m_viewManagerRequiresNativeLayout;
 
   winrt::Windows::Foundation::Collections::IMapView<winrt::hstring, ViewManagerPropertyType> m_nativeProps;
 };

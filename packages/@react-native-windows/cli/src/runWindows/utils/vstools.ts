@@ -8,6 +8,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as chalk from 'chalk';
 import {Project} from '../../config/projectConfig';
+import {CodedError} from '@react-native-windows/telemetry';
 
 const projectTypeGuidsByLanguage = {
   cpp: '{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}',
@@ -95,11 +96,17 @@ export function addProjectToSolution(
   checkMode: boolean = false,
 ): boolean {
   if (project.projectLang === null) {
-    throw new Error('Unable to add project to solution, projectLang is null');
+    throw new CodedError(
+      'AddProjectToSolution',
+      'Unable to add project to solution, projectLang is null',
+    );
   }
 
   if (project.projectGuid === null) {
-    throw new Error('Unable to add project to solution, projectGuid is null');
+    throw new CodedError(
+      'AddProjectToSolution',
+      'Unable to add project to solution, projectGuid is null',
+    );
   }
 
   if (verbose) {
@@ -149,25 +156,27 @@ export function addProjectToSolution(
     '\tGlobalSection(SolutionConfigurationPlatforms) = preSolution',
     '\tEndGlobalSection',
     false,
-  ).map(line => line.match(/\s+([\w|]+)\s=/)![1]);
+  ).map(line => line.match(/\s+([\w\s|]+)\s=/)![1]);
 
   const projectConfigLines: string[] = [];
 
   slnConfigs.forEach(slnConfig => {
-    projectConfigLines.push(
-      `\t\t${projectGuid}.${slnConfig}.ActiveCfg = ${
-        project.projectLang === 'cpp'
-          ? slnConfig.replace('x86', 'Win32')
-          : slnConfig
-      }`,
-    );
-    projectConfigLines.push(
-      `\t\t${projectGuid}.${slnConfig}.Build.0 = ${
-        project.projectLang === 'cpp'
-          ? slnConfig.replace('x86', 'Win32')
-          : slnConfig
-      }`,
-    );
+    if (!slnConfig.endsWith('|Any CPU')) {
+      projectConfigLines.push(
+        `\t\t${projectGuid}.${slnConfig}.ActiveCfg = ${
+          project.projectLang === 'cpp'
+            ? slnConfig.replace('x86', 'Win32')
+            : slnConfig
+        }`,
+      );
+      projectConfigLines.push(
+        `\t\t${projectGuid}.${slnConfig}.Build.0 = ${
+          project.projectLang === 'cpp'
+            ? slnConfig.replace('x86', 'Win32')
+            : slnConfig
+        }`,
+      );
+    }
   });
 
   const projectConfigStartIndex = slnLines.indexOf(

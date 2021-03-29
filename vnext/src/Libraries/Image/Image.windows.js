@@ -8,8 +8,6 @@
  * @format
  */
 
-'use strict';
-
 const DeprecatedImagePropType = require('../DeprecatedPropTypes/DeprecatedImagePropType');
 const React = require('react');
 const ReactNative = require('../Renderer/shims/ReactNative'); // eslint-disable-line no-unused-vars
@@ -129,7 +127,11 @@ let Image = (props: ImagePropsType, forwardedRef) => {
     }
   }
 
+  // $FlowFixMe[incompatible-use]
+  // $FlowFixMe[incompatible-type]
   const resizeMode = props.resizeMode || style.resizeMode || 'cover';
+  // $FlowFixMe[prop-missing]
+  // $FlowFixMe[incompatible-use]
   const tintColor = style.tintColor;
 
   if (props.src != null) {
@@ -162,6 +164,7 @@ let Image = (props: ImagePropsType, forwardedRef) => {
                   {...props}
                   ref={forwardedRef}
                   style={style}
+                  // $FlowFixMe[incompatible-type]
                   resizeMode={resizeMode}
                   tintColor={tintColor}
                   source={sources}

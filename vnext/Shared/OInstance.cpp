@@ -9,16 +9,16 @@
 #include <cxxreact/JSBigString.h>
 #include <cxxreact/JSExecutor.h>
 #include <cxxreact/ReactMarker.h>
+#include <folly/json.h>
 #include <jsi/jsi.h>
 #include <jsiexecutor/jsireact/JSIExecutor.h>
 #include <filesystem>
 #include "OInstance.h"
 #include "Unicode.h"
 
-#include "Chakra/ChakraExecutor.h"
 #include "Chakra/ChakraHelpers.h"
 #include "Chakra/ChakraUtils.h"
-#include "JSI/Shared/RuntimeHolder.h"
+#include "JSI/RuntimeHolder.h"
 
 #include <cxxreact/MessageQueueThread.h>
 #include <cxxreact/ModuleRegistry.h>
@@ -179,12 +179,11 @@ class OJSIExecutorFactory : public JSExecutorFactory {
     auto turboModuleManager = std::make_shared<TurboModuleManager>(turboModuleRegistry_, jsCallInvoker_);
 
     // TODO: The binding here should also add the proxys that convert cxxmodules into turbomodules
-    auto binding = [turboModuleManager](
-                       const std::string &name, const jsi::Value *
-                       /*schema*/) -> std::shared_ptr<TurboModule> { return turboModuleManager->getModule(name); };
+    auto binding = [turboModuleManager](const std::string &name) -> std::shared_ptr<TurboModule> {
+      return turboModuleManager->getModule(name);
+    };
 
-    TurboModuleBinding::install(
-        *runtimeHolder_->getRuntime(), std::function(binding), false /*enableJSTurboModuleCodegen*/);
+    TurboModuleBinding::install(*runtimeHolder_->getRuntime(), std::function(binding));
 
     // init TurboModule
     for (const auto &moduleName : turboModuleManager->getEagerInitModuleNames()) {
@@ -348,7 +347,8 @@ InstanceImpl::InstanceImpl(
           m_devSettings->loggingCallback,
           m_turboModuleRegistry,
           m_innerInstance->getJSCallInvoker());
-    } else if (m_devSettings->jsiEngineOverride != JSIEngineOverride::Default) {
+    } else {
+      assert(m_devSettings->jsiEngineOverride != JSIEngineOverride::Default);
       switch (m_devSettings->jsiEngineOverride) {
         case JSIEngineOverride::Hermes:
 #if defined(USE_HERMES)
@@ -389,43 +389,6 @@ InstanceImpl::InstanceImpl(
           m_devSettings->loggingCallback,
           m_turboModuleRegistry,
           m_innerInstance->getJSCallInvoker());
-    } else {
-      // We use the older non-JSI ChakraExecutor pipeline as a fallback as of
-      // now. This will go away once we completely move to JSI flow.
-      ChakraInstanceArgs instanceArgs;
-
-      instanceArgs.DebuggerBreakOnNextLine = m_devSettings->debuggerBreakOnNextLine;
-      instanceArgs.DebuggerPort = m_devSettings->debuggerPort;
-      instanceArgs.DebuggerRuntimeName = m_devSettings->debuggerRuntimeName;
-
-      instanceArgs.EnableDebugging = m_devSettings->useDirectDebugger;
-      instanceArgs.LoggingCallback = m_devSettings->loggingCallback;
-
-      instanceArgs.EnableNativePerformanceNow = m_devSettings->enableNativePerformanceNow;
-      instanceArgs.DebuggerConsoleRedirection = m_devSettings->debuggerConsoleRedirection;
-
-      // Disable bytecode caching with live reload as we don't make guarantees
-      // that the bundle version will change with edits
-      if (m_devSettings->liveReloadCallback == nullptr) {
-        instanceArgs.BundleUrlMetadataMap = m_devSettings->chakraBundleUrlMetadataMap;
-      }
-
-      if (!m_devSettings->useJITCompilation) {
-#if (defined(_MSC_VER) && !defined(WINRT))
-        instanceArgs.RuntimeAttributes = static_cast<JsRuntimeAttributes>(
-            instanceArgs.RuntimeAttributes | JsRuntimeAttributeDisableNativeCodeGeneration |
-            JsRuntimeAttributeDisableExecutablePageAllocation);
-#else
-        instanceArgs.RuntimeAttributes = static_cast<JsRuntimeAttributes>(
-            instanceArgs.RuntimeAttributes | JsRuntimeAttributeDisableNativeCodeGeneration);
-#endif
-      }
-
-      instanceArgs.MemoryTracker = m_devSettings->memoryTracker
-          ? m_devSettings->memoryTracker
-          : CreateMemoryTracker(std::shared_ptr<MessageQueueThread>{m_nativeQueue});
-
-      jsef = std::make_shared<ChakraExecutorFactory>(std::move(instanceArgs));
     }
   }
 
@@ -507,8 +470,7 @@ void InstanceImpl::loadBundleInternal(std::string &&jsBundleRelativePath, bool s
       }
 
 #else
-      std::string bundlePath =
-          (fs::path(m_devSettings->bundleRootPath) / (jsBundleRelativePath + ".bundle")).u8string();
+      std::string bundlePath = (fs::path(m_devSettings->bundleRootPath) / (jsBundleRelativePath + ".bundle")).string();
 
       auto bundleString = std::make_unique<::react::uwp::StorageFileBigString>(bundlePath);
       m_innerInstance->loadScriptFromString(std::move(bundleString), jsBundleRelativePath, synchronously);

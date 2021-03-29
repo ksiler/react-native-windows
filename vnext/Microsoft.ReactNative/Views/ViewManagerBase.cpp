@@ -74,8 +74,9 @@ YGSize DefaultYogaSelfMeasureFunc(
     assert(false);
   }
 
-  YGSize desiredSize = {GetConstrainedResult(constrainToWidth, element.DesiredSize().Width, widthMode),
-                        GetConstrainedResult(constrainToHeight, element.DesiredSize().Height, heightMode)};
+  YGSize desiredSize = {
+      GetConstrainedResult(constrainToWidth, element.DesiredSize().Width, widthMode),
+      GetConstrainedResult(constrainToHeight, element.DesiredSize().Height, heightMode)};
   return desiredSize;
 }
 
@@ -164,7 +165,7 @@ void ViewManagerBase::GetExportedCustomBubblingEventTypeConstants(
     writer.WritePropertyName(L"phasedRegistrationNames");
     writer.WriteObjectBegin();
     React::WriteProperty(writer, L"captured", bubbleName + L"Capture");
-    React::WriteProperty(writer, L"capbubbledtured", std::move(bubbleName));
+    React::WriteProperty(writer, L"bubbled", std::move(bubbleName));
     writer.WriteObjectEnd();
     writer.WriteObjectEnd();
   }
@@ -190,8 +191,8 @@ void ViewManagerBase::GetExportedCustomDirectEventTypeConstants(
   }
 }
 
-XamlView ViewManagerBase::CreateView(int64_t tag) {
-  XamlView view = CreateViewCore(tag);
+XamlView ViewManagerBase::CreateView(int64_t tag, const winrt::Microsoft::ReactNative::JSValueObject &props) {
+  XamlView view = CreateViewCore(tag, props);
 
   OnViewCreated(view);
   // Set the tag if the element type supports it
@@ -304,7 +305,7 @@ void ViewManagerBase::NotifyUnimplementedProperty(
     TestHook::NotifyUnimplementedProperty(
         Microsoft::Common::Unicode::Utf16ToUtf8(viewManagerName), className, propertyName, value);
   } else {
-    cdebug << "[NonIInspectable] viewManagerName = " << viewManagerName << std::endl;
+    cdebug << "[NonIInspectable] viewManagerName = " << viewManagerName << "\n";
   }
 #endif // DEBUG
 }
@@ -323,6 +324,9 @@ void ViewManagerBase::SetLayoutProps(
   }
   auto fe = element.as<xaml::FrameworkElement>();
 
+  const bool layoutHasChanged = left != react::uwp::ViewPanel::GetLeft(element) ||
+      top != react::uwp::ViewPanel::GetTop(element) || width != fe.Width() || height != fe.Height();
+
   // Set Position & Size Properties
   react::uwp::ViewPanel::SetLeft(element, left);
   react::uwp::ViewPanel::SetTop(element, top);
@@ -331,7 +335,7 @@ void ViewManagerBase::SetLayoutProps(
   fe.Height(height);
 
   // Fire Events
-  if (nodeToUpdate.m_onLayoutRegistered) {
+  if (layoutHasChanged && nodeToUpdate.m_onLayoutRegistered) {
     int64_t tag = GetTag(viewToUpdate);
     folly::dynamic layout = folly::dynamic::object("x", left)("y", top)("height", height)("width", width);
 
@@ -353,8 +357,8 @@ bool ViewManagerBase::IsNativeControlWithSelfLayout() const {
   return GetYogaCustomMeasureFunc() != nullptr;
 }
 
-void ViewManagerBase::DispatchEvent(int64_t viewTag, std::string &&eventName, folly::dynamic &&eventData) const
-    noexcept {
+void ViewManagerBase::DispatchEvent(int64_t viewTag, std::string &&eventName, folly::dynamic &&eventData)
+    const noexcept {
   folly::dynamic params = folly::dynamic::array(viewTag, std::move(eventName), std::move(eventData));
   m_context->CallJSFunction("RCTEventEmitter", "receiveEvent", std::move(params));
 }

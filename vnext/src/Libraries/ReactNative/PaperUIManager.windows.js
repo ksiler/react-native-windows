@@ -8,8 +8,6 @@
  * @format
  */
 
-'use strict';
-
 const NativeModules = require('../BatchedBridge/NativeModules');
 const Platform = require('../Utilities/Platform');
 const UIManagerProperties = require('./UIManagerProperties');
@@ -32,28 +30,10 @@ function getConstants(): Object {
   return NativeUIManagerConstants;
 }
 
-// $FlowFixMe
-const UIManagerJS = {};
-
-// [Windows The spread operator doesn't work on JSI turbomodules, so use this instead
-for (const propName of Object.getOwnPropertyNames(NativeUIManager)) {
-  // $FlowFixMe
-  UIManagerJS[propName] = NativeUIManager[propName];
-}
-// Windows]
-
-/* $FlowFixMe(>=0.123.0 site=react_native_fb) This comment suppresses an error
- * found when Flow v0.123.0 was deployed. To see the error, delete this comment
- * and run Flow. */
-//const UIManagerJS = {
-//  ...NativeUIManager,
-// $FlowFixMe
-UIManagerJS.getConstants = getConstants;
-//  },
-// $FlowFixMe
-UIManagerJS.getViewManagerConfig = function(viewManagerName: string): any {
+function getViewManagerConfig(viewManagerName: string): any {
   if (
     viewManagerConfigs[viewManagerName] === undefined &&
+    global.nativeCallSyncHook && // [Windows] getConstantsForViewManager doesn't work while web debugging. So skip calling it since all constants will have been provided ahead of time.
     NativeUIManager.getConstantsForViewManager
   ) {
     try {
@@ -61,6 +41,12 @@ UIManagerJS.getViewManagerConfig = function(viewManagerName: string): any {
         viewManagerName
       ] = NativeUIManager.getConstantsForViewManager(viewManagerName);
     } catch (e) {
+      console.error(
+        "NativeUIManager.getConstantsForViewManager('" +
+          viewManagerName +
+          "') threw an exception.",
+        e,
+      );
       viewManagerConfigs[viewManagerName] = null;
     }
   }
@@ -89,7 +75,32 @@ UIManagerJS.getViewManagerConfig = function(viewManagerName: string): any {
   }
 
   return viewManagerConfigs[viewManagerName];
-};
+}
+
+// $FlowFixMe
+const UIManagerJS = {};
+
+// [Windows The spread operator doesn't work on JSI turbomodules, so use this instead
+for (const propName of Object.getOwnPropertyNames(NativeUIManager)) {
+  // $FlowFixMe
+  UIManagerJS[propName] = NativeUIManager[propName];
+}
+// Windows]
+
+/* $FlowFixMe(>=0.123.0 site=react_native_fb) This comment suppresses an error
+ * found when Flow v0.123.0 was deployed. To see the error, delete this comment
+ * and run Flow. */
+//const UIManagerJS = {
+//  ...NativeUIManager,
+// $FlowFixMe
+UIManagerJS.getConstants = getConstants;
+//  },
+// $FlowFixMe
+UIManagerJS.getViewManagerConfig = getViewManagerConfig;
+
+UIManagerJS.hasViewManagerConfig = (viewManagerName: string) =>
+  getViewManagerConfig(viewManagerName) != null;
+
 //};
 
 // TODO (T45220498): Remove this.

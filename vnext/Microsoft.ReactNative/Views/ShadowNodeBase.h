@@ -69,7 +69,7 @@ struct REACTWINDOWS_EXPORT ShadowNodeBase : public ShadowNode {
   virtual void removeAllChildren() override;
   virtual void AddView(ShadowNode &child, int64_t index) override;
   virtual void RemoveChildAt(int64_t indexToRemove) override;
-  virtual void createView() override;
+  virtual void createView(const winrt::Microsoft::ReactNative::JSValueObject &) override;
   virtual bool NeedsForceLayout();
 
   virtual void updateProperties(winrt::Microsoft::ReactNative::JSValueObject &props) override;
@@ -80,6 +80,7 @@ struct REACTWINDOWS_EXPORT ShadowNodeBase : public ShadowNode {
   }
 
   void YellowBox(const std::string &message) const noexcept;
+  void RedBox(const std::string &message) const noexcept;
 
   ViewManagerBase *GetViewManager() const;
   XamlView GetView() const {

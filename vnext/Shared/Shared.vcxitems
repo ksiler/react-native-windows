@@ -31,6 +31,8 @@
     </ClCompile>
     <ClCompile Include="$(MSBuildThisFileDirectory)InstanceManager.cpp" />
     <ClCompile Include="$(MSBuildThisFileDirectory)JSBigAbiString.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)JSI\ChakraApi.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)JSI\ChakraRuntime.cpp" />
     <ClCompile Include="$(MSBuildThisFileDirectory)LayoutAnimation.cpp" />
     <ClCompile Include="$(MSBuildThisFileDirectory)Logging.cpp" />
     <ClCompile Include="$(MSBuildThisFileDirectory)MemoryMappedBuffer.cpp" />
@@ -60,11 +62,19 @@
     <ClCompile Include="$(MSBuildThisFileDirectory)WinRTWebSocketResource.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="$(MSBuildThisFileDirectory)..\include\Shared\cdebug.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)AbiSafe.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)AsyncStorageModule.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)AsyncStorage\AsyncStorageManager.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)AsyncStorage\FollyDynamicConverter.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)AsyncStorage\KeyValueStorage.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)JSI\ByteArrayBuffer.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)JSI\ChakraApi.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)JSI\ChakraRuntime.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)JSI\ChakraRuntimeArgs.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)JSI\ChakraRuntimeFactory.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)JSI\RuntimeHolder.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)JSI\ScriptStore.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)Modules\NetworkingModule.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)RuntimeOptions.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)Modules\AsyncStorageModuleWin32.h" />
@@ -76,7 +86,6 @@
     <ClInclude Include="$(MSBuildThisFileDirectory)CxxMessageQueue.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)DevServerHelper.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)DevSettings.h" />
-    <ClInclude Include="$(MSBuildThisFileDirectory)etw\react_native_windows.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)Executors\WebSocketJSExecutor.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)HermesRuntimeHolder.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)IDevSupportManager.h" />
@@ -117,9 +126,6 @@
     <ClInclude Include="$(MSBuildThisFileDirectory)WinRTWebSocketResource.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="$(MSBuildThisFileDirectory)etw\build.bat" />
-    <None Include="$(MSBuildThisFileDirectory)etw\react_native_windows.man" />
-    <None Include="$(MSBuildThisFileDirectory)etw\react_native_windows_etw_res.dll" />
-    <None Include="$(MSBuildThisFileDirectory)etw\register.bat" />
+    <None Include="$(MSBuildThisFileDirectory)tracing\rnw.wprp" />
   </ItemGroup>
 </Project>

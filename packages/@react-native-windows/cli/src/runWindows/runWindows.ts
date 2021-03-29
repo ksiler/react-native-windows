@@ -11,6 +11,9 @@ import {
   Telemetry,
   isMSFTInternal,
   getDiskFreeSpace,
+  CodedError,
+  CodedErrorType,
+  CodedErrors,
 } from '@react-native-windows/telemetry';
 
 import * as build from './utils/build';
@@ -26,7 +29,10 @@ import {runWindowsOptions, RunWindowsOptions} from './runWindowsOptions';
 import {autoLinkCommand} from './utils/autolink';
 import {totalmem, cpus} from 'os';
 
-function setExitProcessWithError(loggingWasEnabled: boolean): void {
+function setExitProcessWithError(
+  error: Error,
+  loggingWasEnabled: boolean,
+): void {
   if (!loggingWasEnabled) {
     console.log(
       `Re-run the command with ${chalk.bold('--logging')} for more information`,
@@ -37,7 +43,11 @@ function setExitProcessWithError(loggingWasEnabled: boolean): void {
       );
     }
   }
-  process.exitCode = 1;
+  if (error instanceof CodedError) {
+    process.exitCode = CodedErrors[error.name as CodedErrorType];
+  } else {
+    process.exitCode = 1;
+  }
 }
 
 function getPkgVersion(pkgName: string): string {
@@ -94,6 +104,10 @@ async function runWindows(
   delete process.env.NPM_CONFIG_CACHE;
   delete process.env.NPM_CONFIG_PREFIX;
 
+  const hasRunRnwDependencies =
+    process.env.LocalAppData &&
+    fs.existsSync(path.join(process.env.LocalAppData, 'rnw-dependencies.txt')); // CODESYNC \vnext\scripts\rnw-dependencies.ps1
+
   if (options.info) {
     try {
       const output = await info.getEnvironmentInfo();
@@ -103,9 +117,9 @@ async function runWindows(
       sdks.forEach(version => console.log('    ' + version));
       return;
     } catch (e) {
-      Telemetry.client?.trackException({exception: e});
+      Telemetry.trackException(e);
       newError('Unable to print environment info.\n' + e.toString());
-      return setExitProcessWithError(options.logging);
+      return setExitProcessWithError(e, options.logging);
     }
   }
 
@@ -113,9 +127,25 @@ async function runWindows(
   try {
     await runWindowsInternal(args, config, options);
   } catch (e) {
-    Telemetry.client?.trackException({exception: e});
+    Telemetry.trackException(e);
     runWindowsError = e;
-    return setExitProcessWithError(options.logging);
+    if (!hasRunRnwDependencies) {
+      const rnwPkgJsonPath = require.resolve(
+        'react-native-windows/package.json',
+        {
+          paths: [process.cwd(), __dirname],
+        },
+      );
+      const rnwDependenciesPath = path.join(
+        path.dirname(rnwPkgJsonPath),
+        'scripts/rnw-dependencies.ps1',
+      );
+
+      newError(
+        `It is possible your installation is missing required software dependencies. Dependencies can be automatically installed by running ${rnwDependenciesPath} from an elevated PowerShell prompt.\nFor more information, go to http://aka.ms/rnw-deps`,
+      );
+    }
+    return setExitProcessWithError(e, options.logging);
   } finally {
     Telemetry.client?.trackEvent({
       name: 'run-windows',
@@ -153,6 +183,7 @@ async function runWindows(
         diskFree: getDiskFreeSpace(__dirname),
         cpus: cpus().length,
         project: await getAnonymizedProjectName(config.root),
+        hasRunRnwDependencies: hasRunRnwDependencies,
       },
     });
     Telemetry.client?.flush();
@@ -196,20 +227,31 @@ async function runWindowsInternal(
   }
 
   // Get the solution file
-  const slnFile = build.getAppSolutionFile(options, config);
+  let slnFile;
+  try {
+    slnFile = build.getAppSolutionFile(options, config);
+  } catch (e) {
+    newError(`Couldn't get app solution information. ${e.message}`);
+    throw e;
+  }
 
-  if (options.autolink) {
-    const autolinkArgs: string[] = [];
-    const autolinkConfig = config;
-    const autoLinkOptions = {
-      logging: options.logging,
-      proj: options.proj,
-      sln: options.sln,
-    };
-    runWindowsPhase = 'AutoLink';
-    await autoLinkCommand.func(autolinkArgs, autolinkConfig, autoLinkOptions);
-  } else {
-    newInfo('Autolink step is skipped');
+  try {
+    if (options.autolink) {
+      const autolinkArgs: string[] = [];
+      const autolinkConfig = config;
+      const autoLinkOptions = {
+        logging: options.logging,
+        proj: options.proj,
+        sln: options.sln,
+      };
+      runWindowsPhase = 'AutoLink';
+      await autoLinkCommand.func(autolinkArgs, autolinkConfig, autoLinkOptions);
+    } else {
+      newInfo('Autolink step is skipped');
+    }
+  } catch (e) {
+    newError(`Autolinking failed. ${e.message}`);
+    throw e;
   }
 
   let buildTools: MSBuildTools;
@@ -226,7 +268,8 @@ async function runWindowsInternal(
         verbose,
         true, // preRelease
       );
-    } catch {
+    } catch (e) {
+      newError(e.message);
       throw error;
     }
   }
@@ -237,7 +280,7 @@ async function runWindowsInternal(
       newError(
         'Visual Studio Solution file not found. Maybe run "npx react-native-windows-init" first?',
       );
-      throw new Error('Cannot find solution file');
+      throw new CodedError('NoSolution', 'Cannot find solution file');
     }
 
     // Get build/deploy options
@@ -281,7 +324,7 @@ async function runWindowsInternal(
       newError(
         'Visual Studio Solution file not found. Maybe run "npx react-native-windows-init" first?',
       );
-      throw new Error('Cannot find solution file');
+      throw new CodedError('NoSolution', 'Cannot find solution file');
     }
 
     try {
